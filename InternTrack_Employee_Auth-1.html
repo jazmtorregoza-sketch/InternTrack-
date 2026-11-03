@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#1769e0"><title>InternTrack Employee</title><style>
+:root{--blue:#1769e0;--navy:#10244a;--muted:#68778d;--bg:#f3f7fc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--navy)}
+.app{max-width:500px;min-height:100vh;margin:auto;background:#f8faff;padding-bottom:76px}
+header{background:linear-gradient(135deg,#1769e0,#3489ed);color:white;padding:19px 18px;border-radius:0 0 22px 22px}
+.brand{font-weight:800;font-size:21px}.subtitle{font-size:11px;opacity:.9;margin-top:4px}
+main{padding:16px}.page{display:none}.page.active{display:block}h2{font-size:20px;margin:4px 0 14px}
+.card{background:#fff;border:1px solid #e6edf5;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 3px 12px #173b660b}
+.muted{color:var(--muted);font-size:13px}.big{font-size:30px;font-weight:800;margin:7px 0}
+input,textarea{width:100%;padding:12px;border:1px solid #d4deea;border-radius:10px;margin:6px 0 12px;font:14px Arial}
+label{font-size:12px;font-weight:700;color:#52627a}.btn{width:100%;padding:13px;border:0;border-radius:11px;margin-top:8px;font-weight:800;font-size:14px}
+.primary{background:var(--blue);color:white}.soft{background:#eaf3ff;color:var(--blue)}.green{background:#168447;color:white}
+.badge{display:inline-block;background:#eaf3ff;color:var(--blue);padding:6px 10px;border-radius:20px;font-size:11px;font-weight:800}
+.progress{height:9px;background:#e4ebf4;border-radius:20px;overflow:hidden;margin:12px 0}.fill{height:100%;background:var(--blue)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.record,.employee{padding:12px 0;border-bottom:1px solid #edf1f6;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.record:last-child,.employee:last-child{border:0}.small{font-size:12px;color:var(--muted);margin-top:4px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(500px,100%);display:flex;background:#fff;border-top:1px solid #e4eaf1}
+nav button{flex:1;border:0;background:white;padding:13px 3px;color:#66758a;font-weight:700;font-size:11px}
+nav button.active{color:var(--blue);background:#eef5ff}
+.status{padding:10px;border-radius:10px;background:#f0f6ff;margin:10px 0;font-size:13px}
+#toast{display:none;position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:#14213d;color:white;padding:11px 15px;border-radius:10px;font-size:12px;z-index:9;max-width:90%;text-align:center}
+
+.authGate{max-width:460px;margin:18px auto;padding:16px}
+.authGate .card{margin-top:12px}
+.authActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hidden{display:none!important}
+</style></head>
+<body><div class="app">
+<header><div class="brand">🎓 InternTrack — Employee</div><div class="subtitle">OJT attendance and hour monitoring</div></header>
+<main>
+
+<section id="authGate" class="page active">
+  <div class="authGate">
+    <div class="card">
+      <h2>Employee Login</h2>
+      <p class="muted">Connect to your InternTrack Firebase project, then create your employee account or sign in.</p>
+      <label>Firebase config JSON</label>
+      <textarea id="firebaseConfig" rows="7" placeholder='Paste your Firebase config JSON here'></textarea>
+      <button class="btn soft" id="saveConfigBtn">Save Firebase Configuration</button>
+      <div id="authStatus" class="status">Firebase configuration is required before login.</div>
+    </div>
+    <div class="card">
+      <label>Email address</label><input id="authEmail" type="email" autocomplete="username" placeholder="employee@example.com">
+      <label>Password</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+      <div class="authActions">
+        <button class="btn primary" id="loginBtn">Log In</button>
+        <button class="btn soft" id="registerBtn">Create Account</button>
+      </div>
+      <p class="small">Use your own employee email. Your Firebase account will identify your attendance records.</p>
+    </div>
+  </div>
+</section>
+
+<section id="home" class="page">
+<div class="card"><div class="muted">Welcome, intern</div><h2 id="homeName">Your name</h2><div class="muted">Company: <b id="homeCompany">Not set</b></div></div>
+<div class="card"><div class="muted">Today's attendance</div><div class="row"><b id="attendanceState">Not timed in</b><span class="badge" id="stateBadge">Ready</span></div><div class="big" id="timer">00:00:00</div><button id="timeButton" class="btn primary">Time In</button><div class="small">The timer runs while a session is active. Time Out saves the session to your records.</div></div>
+<div class="card"><div class="muted">Accumulated OJT hours</div><div class="big"><span id="hoursTotal">0.00</span> <span class="muted">/ <span id="requiredTotal">600</span> hrs</span></div><div class="progress"><div id="progressFill" class="fill" style="width:0%"></div></div><div class="row muted"><span id="progressText">0% completed</span><span id="remainingText">600 hrs remaining</span></div></div>
+<div class="card"><div class="muted">Cloud connection</div><div id="connectionState" class="status">Not configured — set up Firebase in Settings.</div><button class="btn soft" onclick="showPage('settings')">Connection settings</button></div>
+</section>
+<section id="recordsPage" class="page"><h2>My Time Records</h2><div class="card"><div id="recordsList" class="muted">No records yet.</div></div></section>
+<section id="profilePage" class="page"><h2>My Profile</h2><div class="card"><div class="muted">Student / Employee</div><h2 id="profileName">—</h2><p class="muted">Student ID: <b id="profileId">—</b></p><p class="muted">Course: <b id="profileCourse">—</b></p></div><div class="card"><div class="muted">Internship details</div><p>Company: <b id="profileCompany">—</b></p><p>Employer / Supervisor: <b id="profileSupervisor">—</b></p><p>Required hours: <b id="profileRequired">600</b></p><button class="btn soft" onclick="showPage('editPage')">Edit my information</button></div></section>
+<section id="editPage" class="page"><h2>Edit My Information</h2><div class="card">
+<label>Student / Employee ID</label><input id="fId" placeholder="e.g. 2026-001">
+<label>Full name</label><input id="fName" placeholder="Your full name">
+<label>Course / Program</label><input id="fCourse" placeholder="Your course">
+<label>Company</label><input id="fCompany" placeholder="Company name">
+<label>Employer / Supervisor</label><input id="fSupervisor" placeholder="Supervisor name">
+<label>Required OJT hours</label><input id="fRequired" type="number" min="1">
+<button class="btn primary" onclick="saveProfile()">Save profile</button></div></section>
+
+<section id="settings" class="page"><h2>Firebase Connection</h2><div class="card">
+<p class="muted">Your Firebase configuration is saved on this device. Your employee account is authenticated with Firebase.</p>
+<div id="accountInfo" class="status">Not signed in.</div>
+<button class="btn soft" id="logoutBtn">Log Out</button>
+<button class="btn soft" onclick="showPage('home')">Back to Home</button>
+</div></section>
+</main>
+<nav><button class="active" onclick="showPage('home',this)">Home</button><button onclick="showPage('recordsPage',this)">Records</button><button onclick="showPage('profilePage',this)">Profile</button><button onclick="showPage('settings',this)">Settings</button></nav></div><div id="toast"></div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import {getDatabase,ref,set,get,update} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+const $=id=>document.getElementById(id);
+const defaultData={id:"2026-001",name:"Alexandrea Ann S.",course:"BS Office Administration",company:"ABC Corporation",supervisor:"Juan Dela Cruz",required:600,totalHours:0,records:[],activeStart:null,updatedAt:Date.now()};
+let data=JSON.parse(localStorage.getItem("it_employee_data")||"null")||defaultData;
+let app=null,db=null,auth=null,currentUser=null,timerHandle=null;
+function persist(){localStorage.setItem("it_employee_data",JSON.stringify(data));}
+function toast(m){$("toast").textContent=m;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",2600);}
+window.showPage=(id,btn)=>{if(!currentUser)return;document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active");render();};
+function duration(ms){let s=Math.max(0,Math.floor(ms/1000));return [Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(x=>String(x).padStart(2,"0")).join(":");}
+function render(){
+$("homeName").textContent=data.name||"Your name";$("homeCompany").textContent=data.company||"Not set";
+$("profileName").textContent=data.name||"—";$("profileId").textContent=data.id||"—";$("profileCourse").textContent=data.course||"—";$("profileCompany").textContent=data.company||"—";$("profileSupervisor").textContent=data.supervisor||"—";$("profileRequired").textContent=data.required;
+$("fId").value=data.id||"";$("fName").value=data.name||"";$("fCourse").value=data.course||"";$("fCompany").value=data.company||"";$("fSupervisor").value=data.supervisor||"";$("fRequired").value=data.required||600;
+let live=data.activeStart?Math.max(0,(Date.now()-data.activeStart)/3600000):0,total=Number(data.totalHours||0)+live,pct=Math.min(100,total/(Number(data.required)||600)*100);
+$("timer").textContent=data.activeStart?duration(Date.now()-data.activeStart):"00:00:00";$("attendanceState").textContent=data.activeStart?"Currently timed in":"Not timed in";$("stateBadge").textContent=data.activeStart?"Active":"Ready";$("timeButton").textContent=data.activeStart?"Time Out":"Time In";
+$("hoursTotal").textContent=total.toFixed(2);$("requiredTotal").textContent=data.required;$("progressFill").style.width=pct+"%";$("progressText").textContent=Math.floor(pct)+"% completed";$("remainingText").textContent=Math.max(0,data.required-total).toFixed(2)+" hrs remaining";
+$("recordsList").innerHTML=data.records.length?data.records.slice().reverse().map(r=>`<div class="record"><div><b>${r.date}</b><div class="small">${r.time}</div></div><span class="badge">${Number(r.hours).toFixed(2)} hrs ${r.verified?"✓ Verified":"· Pending"}</span></div>`).join(""):"No records yet.";
+}
+async function cloudSave(){
+persist(); if(!db||!currentUser)return;
+try{
+ data.ownerUid=currentUser.uid; data.ownerEmail=currentUser.email||"";
+ await set(ref(db,"interntrack/employees/"+encodeURIComponent(data.id)),data);
+ $("connectionState").textContent="Connected — records synced to cloud.";
+}catch(e){$("connectionState").textContent="Sync blocked: "+(e.code||e.message);console.error(e);}
+}
+async function setupFirebase(cfg){
+ if(app){try{await signOut(auth)}catch{}}
+ app=initializeApp(cfg,"employeeAuthApp"); db=getDatabase(app); auth=getAuth(app);
+ localStorage.setItem("it_firebase_config",JSON.stringify(cfg));
+ $("authStatus").textContent="Firebase configured. You can now log in or create your employee account.";
+ onAuthStateChanged(auth,async user=>{
+   currentUser=user;
+   if(user){
+     $("authGate").classList.remove("active");
+     document.querySelectorAll("main > .page").forEach(p=>p.classList.remove("active"));
+     $("home").classList.add("active");
+     $("accountInfo").textContent="Signed in as "+(user.email||user.uid);
+     const snap=await get(ref(db,"interntrack/employees/"+encodeURIComponent(data.id)));
+     if(snap.exists() && snap.val().ownerUid===user.uid){data={...defaultData,...snap.val()};persist();}
+     else {data.ownerUid=user.uid;await cloudSave();}
+     render();
+   } else {
+     document.querySelectorAll("main > .page").forEach(p=>p.classList.remove("active"));
+     $("authGate").classList.add("active");
+     $("accountInfo").textContent="Not signed in.";
+   }
+ });
+}
+$("saveConfigBtn").addEventListener("click",async()=>{
+ try{const cfg=JSON.parse($("firebaseConfig").value.trim());if(!cfg.apiKey||!cfg.databaseURL||!cfg.projectId)throw Error("Please include apiKey, databaseURL, and projectId.");await setupFirebase(cfg);toast("Firebase configuration saved.");}
+ catch(e){$("authStatus").textContent="Configuration error: "+e.message;toast("Check your JSON configuration.");}
+});
+$("registerBtn").addEventListener("click",async()=>{
+ try{if(!auth)throw Error("Save your Firebase configuration first.");const email=$("authEmail").value.trim(),password=$("authPassword").value;if(!email||password.length<6)throw Error("Enter a valid email and a password with at least 6 characters.");await createUserWithEmailAndPassword(auth,email,password);toast("Employee account created.");}
+ catch(e){toast("Registration error: "+(e.code||e.message));}
+});
+$("loginBtn").addEventListener("click",async()=>{
+ try{if(!auth)throw Error("Save your Firebase configuration first.");await signInWithEmailAndPassword(auth,$("authEmail").value.trim(),$("authPassword").value);toast("Logged in successfully.");}
+ catch(e){toast("Login error: "+(e.code||e.message));}
+});
+$("logoutBtn").addEventListener("click",async()=>{if(auth)await signOut(auth);});
+window.saveProfile=async()=>{
+ if(!currentUser){toast("Please log in first.");return;}
+ const oldId=data.id;data={...data,id:$("fId").value.trim()||oldId,name:$("fName").value.trim(),course:$("fCourse").value.trim(),company:$("fCompany").value.trim(),supervisor:$("fSupervisor").value.trim(),required:Math.max(1,Number($("fRequired").value)||600),updatedAt:Date.now(),ownerUid:currentUser.uid,ownerEmail:currentUser.email||""};
+ persist();await cloudSave();render();toast("Profile saved.");
+};
+$("timeButton").addEventListener("click",async()=>{
+ if(!currentUser){toast("Please log in first.");return;}
+ if(!data.activeStart){data.activeStart=Date.now();data.updatedAt=Date.now();await cloudSave();toast("Time In saved — timer started.");}
+ else{let start=data.activeStart,end=Date.now(),hrs=(end-start)/3600000;data.totalHours=Number((Number(data.totalHours||0)+hrs).toFixed(2));data.records.push({date:new Date(start).toLocaleDateString(),time:new Date(start).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+" – "+new Date(end).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}),hours:Number(hrs.toFixed(2)),start,end,verified:false});data.activeStart=null;data.updatedAt=Date.now();await cloudSave();toast("Time Out saved — hours added to your record.");}
+ render();
+});
+try{const cfg=JSON.parse(localStorage.getItem("it_firebase_config")||"null");if(cfg){$("firebaseConfig").value=JSON.stringify(cfg,null,2);await setupFirebase(cfg);}}
+catch(e){$("authStatus").textContent="Firebase setup needed. Paste your project configuration above.";}
+render();timerHandle=setInterval(()=>{if(currentUser)render()},1000);
+window.addEventListener("online",()=>cloudSave());
+</script></body></html>

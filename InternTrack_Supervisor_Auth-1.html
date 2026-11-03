@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#1769e0"><title>InternTrack Supervisor</title><style>
+:root{--blue:#1769e0;--navy:#10244a;--muted:#68778d;--bg:#f3f7fc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:var(--navy)}
+.app{max-width:500px;min-height:100vh;margin:auto;background:#f8faff;padding-bottom:76px}
+header{background:linear-gradient(135deg,#1769e0,#3489ed);color:white;padding:19px 18px;border-radius:0 0 22px 22px}
+.brand{font-weight:800;font-size:21px}.subtitle{font-size:11px;opacity:.9;margin-top:4px}
+main{padding:16px}.page{display:none}.page.active{display:block}h2{font-size:20px;margin:4px 0 14px}
+.card{background:#fff;border:1px solid #e6edf5;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 3px 12px #173b660b}
+.muted{color:var(--muted);font-size:13px}.big{font-size:30px;font-weight:800;margin:7px 0}
+input,textarea{width:100%;padding:12px;border:1px solid #d4deea;border-radius:10px;margin:6px 0 12px;font:14px Arial}
+label{font-size:12px;font-weight:700;color:#52627a}.btn{width:100%;padding:13px;border:0;border-radius:11px;margin-top:8px;font-weight:800;font-size:14px}
+.primary{background:var(--blue);color:white}.soft{background:#eaf3ff;color:var(--blue)}.green{background:#168447;color:white}
+.badge{display:inline-block;background:#eaf3ff;color:var(--blue);padding:6px 10px;border-radius:20px;font-size:11px;font-weight:800}
+.progress{height:9px;background:#e4ebf4;border-radius:20px;overflow:hidden;margin:12px 0}.fill{height:100%;background:var(--blue)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.record,.employee{padding:12px 0;border-bottom:1px solid #edf1f6;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.record:last-child,.employee:last-child{border:0}.small{font-size:12px;color:var(--muted);margin-top:4px}
+nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(500px,100%);display:flex;background:#fff;border-top:1px solid #e4eaf1}
+nav button{flex:1;border:0;background:white;padding:13px 3px;color:#66758a;font-weight:700;font-size:11px}
+nav button.active{color:var(--blue);background:#eef5ff}
+.status{padding:10px;border-radius:10px;background:#f0f6ff;margin:10px 0;font-size:13px}
+#toast{display:none;position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:#14213d;color:white;padding:11px 15px;border-radius:10px;font-size:12px;z-index:9;max-width:90%;text-align:center}
+
+.authGate{max-width:460px;margin:18px auto;padding:16px}
+.authGate .card{margin-top:12px}
+.authActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hidden{display:none!important}
+</style></head>
+<body><div class="app">
+<header><div class="brand">🛡️ InternTrack — Supervisor</div><div class="subtitle">Review and verify intern attendance</div></header>
+<main>
+
+<section id="authGate" class="page active">
+ <div class="authGate">
+  <div class="card">
+   <h2>Supervisor Login</h2>
+   <p class="muted">Only the authorized supervisor account should sign in here.</p>
+   <label>Firebase config JSON</label>
+   <textarea id="firebaseConfig" rows="7" placeholder="Paste the same Firebase config JSON used in Employee app"></textarea>
+   <button class="btn soft" id="saveConfigBtn">Save Firebase Configuration</button>
+   <div id="authStatus" class="status">Firebase configuration is required before login.</div>
+  </div>
+  <div class="card">
+   <label>Supervisor email</label><input id="authEmail" type="email" autocomplete="username" placeholder="supervisor@example.com">
+   <label>Password</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Your password">
+   <button class="btn primary" id="loginBtn">Log In as Supervisor</button>
+   <p class="small">Supervisor accounts must be created and authorized separately. There is no public supervisor sign-up button.</p>
+  </div>
+ </div>
+</section>
+
+<section id="dashboard" class="page"><div class="row"><h2>Supervisor Dashboard</h2><button class="btn soft" style="width:auto;margin:0" onclick="loadEmployees()">Refresh</button></div><div class="card"><div class="muted">Registered employees</div><div class="big" id="employeeCount">0</div><div class="small" id="syncState">Not connected to database.</div></div><div class="card"><h3>Employee List</h3><div id="employeeList" class="muted">Connect Firebase in Settings to load employee records.</div></div></section>
+<section id="detail" class="page"><h2>Employee Details</h2><div class="card"><h2 id="dName">Select an employee</h2><p class="muted">ID: <b id="dId">—</b></p><p class="muted">Course: <b id="dCourse">—</b></p><p class="muted">Company: <b id="dCompany">—</b></p><p class="muted">Employer / Supervisor: <b id="dSupervisor">—</b></p></div><div class="card"><div class="muted">Recorded OJT hours</div><div class="big"><span id="dHours">0</span> / <span id="dRequired">600</span> hrs</div><div class="progress"><div class="fill" id="dProgress" style="width:0%"></div></div><span class="badge" id="dVerification">Pending verification</span></div><div class="card"><h3>Attendance records</h3><div id="dRecords" class="muted">No records.</div></div><button class="btn green" id="verifyButton">Verify selected records</button></section>
+
+<section id="settings" class="page"><h2>Account Settings</h2><div class="card"><div id="accountInfo" class="status">Not signed in.</div><button class="btn soft" id="logoutBtn">Log Out</button><button class="btn soft" onclick="showPage('dashboard')">Back to Dashboard</button></div></section>
+</main>
+<nav><button class="active" onclick="showPage('dashboard',this)">Dashboard</button><button onclick="showPage('detail',this)">Details</button><button onclick="showPage('settings',this)">Account</button></nav></div><div id="toast"></div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import {getDatabase,ref,get,update} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+import {getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+const $=id=>document.getElementById(id);let app=null,db=null,auth=null,currentUser=null,employees={},selectedId=null;
+function toast(m){$("toast").textContent=m;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",2600);}
+window.showPage=(id,btn)=>{if(!currentUser)return;document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));if(btn)btn.classList.add("active");};
+async function setupFirebase(cfg){
+ app=initializeApp(cfg,"supervisorAuthApp");db=getDatabase(app);auth=getAuth(app);localStorage.setItem("it_firebase_config",JSON.stringify(cfg));
+ $("authStatus").textContent="Firebase configured. Sign in with your authorized supervisor account.";
+ onAuthStateChanged(auth,async user=>{
+  currentUser=user;
+  if(!user){document.querySelectorAll("main > .page").forEach(p=>p.classList.remove("active"));$("authGate").classList.add("active");$("accountInfo").textContent="Not signed in.";return;}
+  try{
+   const roleSnap=await get(ref(db,"interntrack/roles/"+user.uid));
+   if(!roleSnap.exists()||roleSnap.val().supervisor!==true){await signOut(auth);toast("This account is not authorized as a supervisor.");return;}
+   document.querySelectorAll("main > .page").forEach(p=>p.classList.remove("active"));$("dashboard").classList.add("active");
+   $("accountInfo").textContent="Signed in as authorized supervisor: "+(user.email||user.uid);
+   await loadEmployees();
+  }catch(e){$("syncState").textContent="Access check failed: "+(e.code||e.message);await signOut(auth);}
+ });
+}
+$("saveConfigBtn").addEventListener("click",async()=>{
+ try{const cfg=JSON.parse($("firebaseConfig").value.trim());if(!cfg.apiKey||!cfg.databaseURL||!cfg.projectId)throw Error("Please include apiKey, databaseURL, and projectId.");await setupFirebase(cfg);toast("Firebase configuration saved.");}
+ catch(e){$("authStatus").textContent="Configuration error: "+e.message;}
+});
+$("loginBtn").addEventListener("click",async()=>{
+ try{if(!auth)throw Error("Save your Firebase configuration first.");await signInWithEmailAndPassword(auth,$("authEmail").value.trim(),$("authPassword").value);toast("Login successful. Checking supervisor access…");}
+ catch(e){toast("Login error: "+(e.code||e.message));}
+});
+$("logoutBtn").addEventListener("click",async()=>{if(auth)await signOut(auth);});
+async function loadEmployees(){if(!db||!currentUser)return;try{const snap=await get(ref(db,"interntrack/employees"));employees=snap.exists()?snap.val():{};renderList();$("syncState").textContent="Cloud sync completed: "+new Date().toLocaleTimeString();}catch(e){$("syncState").textContent="Could not load records: "+(e.code||e.message);}}
+window.loadEmployees=loadEmployees;
+function renderList(){let vals=Object.values(employees);$("employeeCount").textContent=vals.length;$("employeeList").innerHTML=vals.length?vals.map(e=>`<div class="employee"><div><b>${safe(e.name||"Unnamed intern")}</b><div class="small">${safe(e.id||"")} · ${Number(e.totalHours||0).toFixed(2)} / ${Number(e.required||600)} hrs</div><div class="small">${e.records?.length||0} attendance record(s)</div></div><button class="btn soft" style="width:auto;margin:0" data-id="${safe(e.id||"")}" onclick="openEmployee(this.dataset.id)">View</button></div>`).join(""):"No employee records found yet. Have the employee app save a profile or time record first.";}
+function safe(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+window.openEmployee=id=>{let e=employees[id];if(!e)return;selectedId=id;$("dName").textContent=e.name||"Unnamed";$("dId").textContent=e.id||id;$("dCourse").textContent=e.course||"—";$("dCompany").textContent=e.company||"—";$("dSupervisor").textContent=e.supervisor||"—";$("dHours").textContent=Number(e.totalHours||0).toFixed(2);$("dRequired").textContent=e.required||600;$("dProgress").style.width=Math.min(100,Number(e.totalHours||0)/(Number(e.required)||600)*100)+"%";$("dVerification").textContent=e.verified?"Verified":"Pending verification";$("dRecords").innerHTML=(e.records||[]).length?e.records.map(r=>`<div class="record"><div><b>${safe(r.date||"")}</b><div class="small">${safe(r.time||"")}</div></div><span class="badge">${Number(r.hours||0).toFixed(2)} hrs ${r.verified?"✓":""}</span></div>`).join(""):"No records yet.";showPage("detail",document.querySelectorAll("nav button")[1]);};
+$("verifyButton").addEventListener("click",async()=>{if(!db||!selectedId||!currentUser){toast("Select an employee first.");return;}try{let e=employees[selectedId];let updated=(e.records||[]).map(r=>({...r,verified:true}));await update(ref(db,"interntrack/employees/"+encodeURIComponent(selectedId)),{verified:true,records:updated,verifiedAt:Date.now()});e.verified=true;e.records=updated;openEmployee(selectedId);toast("Employee records verified.");}catch(err){toast("Verification failed: "+(err.code||err.message));}});
+try{const cfg=JSON.parse(localStorage.getItem("it_firebase_config")||"null");if(cfg){$("firebaseConfig").value=JSON.stringify(cfg,null,2);await setupFirebase(cfg);}}
+catch(e){$("authStatus").textContent="Firebase setup needed. Paste your project configuration above.";}
+</script></body></html>
